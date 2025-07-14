@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Predicción de Supervivencia en el Titanic</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+        
+        :root {
+            --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --danger: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+            --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text: #2c3e50;
+            --text-light: #7f8c8d;
+            --border: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.05)"/><circle cx="20" cy="80" r="0.5" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .ship-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .form-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1), 0 1px 0 rgba(255,255,255,0.2) inset;
+            padding: 40px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: white;
+            color: var(--text);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-group input:hover,
+        .form-group select:hover {
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 10px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .resultado {
+            margin-top: 30px;
+            padding: 35px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.5s ease;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .resultado.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .resultado.sobrevive {
+            background: rgba(56, 239, 125, 0.15);
+            border-color: rgba(56, 239, 125, 0.4);
+            box-shadow: 0 15px 35px rgba(56, 239, 125, 0.2);
+        }
+
+        .resultado.no-sobrevive {
+            background: rgba(247, 183, 51, 0.15);
+            border-color: rgba(247, 183, 51, 0.4);
+            box-shadow: 0 15px 35px rgba(247, 183, 51, 0.2);
+        }
+
+        .resultado h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .resultado .prediction {
+            font-size: 1.5rem;
+            font-weight: 700;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .resultado .sobrevive .prediction {
+            color: #0d7377;
+            background: rgba(56, 239, 125, 0.2);
+            border: 2px solid rgba(56, 239, 125, 0.3);
+        }
+
+        .resultado .no-sobrevive .prediction {
+            color: #d63031;
+            background: rgba(247, 183, 51, 0.2);
+            border: 2px solid rgba(247, 183, 51, 0.3);
+        }
+
+        .confidence {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin-top: 15px;
+            font-weight: 500;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error {
+            color: #fc4a1a;
+            background: rgba(252, 74, 26, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(252, 74, 26, 0.3);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .form-container {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .btn {
+                padding: 14px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="ship-icon">🚢</div>
+            <h1>Predictor de Supervivencia</h1>
+            <p>¿Habrías sobrevivido al hundimiento del Titanic?</p>
+        </div>
+
+        <div class="form-container">
+            <form id="predictionForm">
+                <div class="form-group">
+                    <label for="age">Edad</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="age" name="age" required min="0" max="100" placeholder="Ingresa tu edad">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="fare">Tarifa del boleto ($)</label>
+                    <div class="input-wrapper">
+                        <input type="number" step="0.0001" id="fare" name="fare" required min="0" placeholder="Ej: 71.2833">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="sex">Sexo</label>
+                    <select id="sex" name="sex" required>
+                        <option value="">Selecciona una opción</option>
+                        <option value="male">Masculino</option>
+                        <option value="female">Femenino</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="pclass">Clase del pasajero</label>
+                    <select id="pclass" name="pclass" required>
+                        <option value="">Selecciona una opción</option>
+                        <option value="1">Primera clase</option>
+                        <option value="2">Segunda clase</option>
+                        <option value="3">Tercera clase</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="embarked">Puerto de embarque</label>
+                    <select id="embarked" name="embarked" required>
+                        <option value="">Selecciona una opción</option>
+                        <option value="S">Southampton</option>
+                        <option value="C">Cherbourg</option>
+                        <option value="Q">Queenstown</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn">
+                    Predecir mi supervivencia
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analizando tus posibilidades...</p>
+            </div>
+        </div>
+
+        <div class="resultado" id="resultado"></div>
+    </div>
+
+    <script>
+        // Simulación de predicción para demo (reemplaza con tu lógica real)
+        function simulatePrediction(data) {
+            // Lógica simplificada basada en datos históricos del Titanic
+            let survivalScore = 0;
+            
+            // Sexo (factor más importante)
+            if (data.sex === 'female') survivalScore += 0.5;
+            
+            // Clase
+            if (data.pclass === '1') survivalScore += 0.3;
+            else if (data.pclass === '2') survivalScore += 0.15;
+            
+            // Edad
+            if (data.age < 16) survivalScore += 0.2;
+            else if (data.age > 60) survivalScore -= 0.1;
+            
+            // Tarifa (indicador de clase socioeconómica)
+            if (data.fare > 50) survivalScore += 0.1;
+            else if (data.fare < 10) survivalScore -= 0.1;
+            
+            // Puerto de embarque
+            if (data.embarked === 'C') survivalScore += 0.05;
+            
+            return {
+                sobrevive: survivalScore > 0.4 ? 1 : 0,
+                confidence: Math.min(Math.max(survivalScore, 0.1), 0.9)
+            };
+        }
+
+        document.getElementById('predictionForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            const resultadoDiv = document.getElementById('resultado');
+            const loadingDiv = document.getElementById('loading');
+
+            // Mostrar loading
+            loadingDiv.style.display = 'block';
+            resultadoDiv.style.display = 'none';
+
+            try {
+                // Simular delay de API
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                // Usar simulación local (reemplaza con tu API real)
+                const prediction = simulatePrediction(data);
+                
+                const survives = prediction.sobrevive === 1;
+                const confidence = Math.round(prediction.confidence * 100);
+
+                resultadoDiv.className = `resultado ${survives ? 'sobrevive' : 'no-sobrevive'}`;
+                resultadoDiv.innerHTML = `
+                    <h3>Resultado de la predicción</h3>
+                    <div class="prediction">
+                        ${survives ? '🎉 ¡Habrías sobrevivido!' : '💔 No habrías sobrevivido'}
+                    </div>
+                `;
+
+                loadingDiv.style.display = 'none';
+                resultadoDiv.style.display = 'block';
+                
+                // Trigger animation
+                setTimeout(() => {
+                    resultadoDiv.classList.add('show');
+                }, 100);
+
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                resultadoDiv.className = 'resultado';
+                resultadoDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Error</h3>
+                        <p>Hubo un problema procesando tu solicitud. Por favor intenta nuevamente.</p>
+                    </div>
+                `;
+                resultadoDiv.style.display = 'block';
+                resultadoDiv.classList.add('show');
+            }
+        });
+    </script>
+</body>
+</html>
